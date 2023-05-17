@@ -146,9 +146,9 @@ void generateCode(pGenerateCodes generate_codes, Production production, pAttribu
             );
 
 
-        case 16:
+        case 14:
         case 15:
-        case 14:// 关系运算符
+        case 16:// 关系运算符
             attributes[MAX_STATE_STACK_NUM - 1].condition_elem.true_list = MakeList(generate_codes->code_nums);
             attributes[MAX_STATE_STACK_NUM - 1].condition_elem.true_nums = 1;
             attributes[MAX_STATE_STACK_NUM - 1].condition_elem.false_list = MakeList(generate_codes->code_nums);
@@ -157,8 +157,8 @@ void generateCode(pGenerateCodes generate_codes, Production production, pAttribu
             // 生成中间代码 ‘if‘ E1 rel E2 ’goto_‘
             generate_codes->codes[generate_codes->code_nums].code_type = CONDITIONAL_JUMP;
             generate_codes->codes[generate_codes->code_nums].code.op_id = elems[1].token_id; // 关系运算符对应id
-            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[0],elems[2].token_str); // 第一个对象
-            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[1], elems[0].token_str); // 第二个对象
+            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[0], attributes[stack.top - 2].operator_elem.str); // 第一个对象
+            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[1], attributes[stack.top].operator_elem.str); // 第二个对象
             generate_codes->code_nums += 1;
 
             // 生成无符号跳转
@@ -167,21 +167,32 @@ void generateCode(pGenerateCodes generate_codes, Production production, pAttribu
 
             break;
 
-        case 22:
-        case 21:
         case 17:
-        case 18: // E -> E + T
+        case 18:
+        case 21:
+        case 22: // E -> E + T
             generate_codes->codes[generate_codes->code_nums].code_type = ASSIGNMENT;
             generate_codes->codes[generate_codes->code_nums].code.op_id = elems[1].token_id;
             strcpy(generate_codes->codes[generate_codes->code_nums].code.params[0],"t");
-            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[1],elems[2].token_str);
-            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[2],elems[0].token_str);
+            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[1],attributes[stack.top - 2].operator_elem.str);
+            strcpy(generate_codes->codes[generate_codes->code_nums].code.params[2],attributes[stack.top].operator_elem.str);
             generate_codes->code_nums += 1;
             break;
 
-        case 19:
-        case 20:
+        case 19: // E -> T
+        case 20: // T -> F
+            strcpy(attributes[MAX_STATE_STACK_NUM - 1].operator_elem.str, attributes[stack.top].operator_elem.str);
+            break;
 
+        case 23: // F -> (E)
+            strcpy(attributes[MAX_STATE_STACK_NUM - 1].operator_elem.str, attributes[stack.top - 1].operator_elem.str);
+            break;
+
+        case 24:
+        case 25:
+            // 字符的str复制到非终极符
+            strcpy(attributes[MAX_STATE_STACK_NUM - 1].operator_elem.str, elems[0].token_str);
+            break;
     }
 }
 
@@ -200,7 +211,10 @@ void printGenerateCodes(const GenerateCodes codes)
         {
             case ASSIGNMENT:
                 get_lex(codes.codes[i].code.op_id, temp);
-                printf("%s %s %s %s;\n", codes.codes[i].code.params[0], temp, codes.codes[i].code.params[1], codes.codes[i].code.params[2]);
+                if (strcmp(temp, "=") != 0)
+                    printf("%s %s %s %s;\n", codes.codes[i].code.params[0], temp, codes.codes[i].code.params[1], codes.codes[i].code.params[2]);
+                else
+                    printf("%s = %s;\n", codes.codes[i].code.params[0], codes.codes[i].code.params[1]);
                 break;
             case JUMP:
                 printf("goto %d;\n", codes.codes[i].code.jump_target);
@@ -210,6 +224,7 @@ void printGenerateCodes(const GenerateCodes codes)
                 printf("if %s %s %s goto %d;\n", codes.codes[i].code.params[0], temp,  codes.codes[i].code.params[1], codes.codes[i].code.jump_target);
                 break;
             default:
+                printf("have blank code! exit");
                 break;
         }
     }
